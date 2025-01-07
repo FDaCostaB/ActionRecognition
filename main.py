@@ -8,8 +8,8 @@ def train_cnn_standford40():
     data = Dataset("Stanford40")
     data.prepare(Dataset.FRAME)
 
-    #model.train(data, 0.0004, 50, 10)
-    model.load()
+    model.train(data, 0.0005, 50, 10)
+    #model.load()
     model.test(data)
 
 
@@ -47,6 +47,6 @@ def train_two_stream_cnn():
 if __name__ == '__main__':
     print("Start")
     train_cnn_standford40()
-    finetune_cnn_for_hmdb51()
-    train_single_stream_optical()
-    train_two_stream_cnn()
+    #finetune_cnn_for_hmdb51()
+    #train_single_stream_optical()
+    #train_two_stream_cnn()

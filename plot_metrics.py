@@ -16,9 +16,9 @@ def plotLossToEpoch(history, modelName):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.xlim(0, 50)
-    plt.ylim(0, 1)
     plt.legend(['train', 'validation'], loc='upper left')
-    plt.savefig(CONST.PLOT_PATH + modelName + "_loss.png")
+    if CONST.PLOT_SAVE:
+        plt.savefig(CONST.PLOT_PATH + modelName + "_loss.png")
     if CONST.PLOT_SHOW:
         plt.show()
 
@@ -34,6 +34,7 @@ def plotAccToEpoch(history, modelName):
     plt.xlim(0, 50)
     plt.ylim(0, 1)
     plt.legend(['train', 'validation'], loc='upper left')
-    plt.savefig(CONST.PLOT_PATH + modelName + "_acc.png")
+    if CONST.PLOT_SAVE:
+        plt.savefig(CONST.PLOT_PATH + modelName + "_acc.png")
     if CONST.PLOT_SHOW:
         plt.show()

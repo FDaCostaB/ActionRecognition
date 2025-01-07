@@ -62,12 +62,20 @@ class Model:
             score = self.model.evaluate(data.get(Dataset.TEST), data.tst_labels)
         print("Start Confusion matrix")
         predictions = self.model.predict(data.get(Dataset.TEST))
-        predictions = np.argmax(predictions, axis=1)
-        conf_mat_labels = np.argmax(data.tst_labels, axis=1)
-        conf_matrix = tf.math.confusion_matrix(labels=conf_mat_labels, predictions=predictions)
+        pred_top1 = np.argmax(predictions, axis=1)
+        tst_index = np.argmax(data.tst_labels, axis=1)
+        conf_matrix = tf.math.confusion_matrix(labels=tst_index, predictions=pred_top1)
         print(conf_matrix)
+        pred_top3 = [pred[-5:] for pred in np.argsort(predictions, axis=1)]
+        top3_acc = 0
+        for i in range(len(tst_index)):
+            if tst_index[i] in pred_top3[i]:
+                top3_acc = top3_acc + 1
+        top3_acc = top3_acc / len(tst_index)
+        print("Top 3 accuracy", top3_acc)
         print("Global Loss", score[0])
         print("Global accuracy:", score[1])
+
 
     def plot_evaluation(self, history):
         plot.plotLossToEpoch(history, self.name)
@@ -101,6 +109,7 @@ class Model:
             layers.Dense(256, activation="relu"),
             layers.Dropout(0.5),
             layers.Dense(64, activation="relu"),
+            layers.Dropout(0.5),
             output_layer,
         ])
         return stanford40_cnn
@@ -121,6 +130,7 @@ class Model:
             layers.Dense(256, activation="relu"),
             layers.Dropout(0.5),
             layers.Dense(256, activation="relu"),
+            layers.Dropout(0.5),
             output_layer,
         ])
         return optical_flow_cnn
@@ -176,6 +186,7 @@ class Model:
         full_model = (layers.Dense(512, activation="relu"))(full_model)
         full_model = (layers.Dropout(0.5))(full_model)
         full_model = (layers.Dense(128, activation="relu"))(full_model)
+        full_model = (layers.Dropout(0.5))(full_model)
         full_model = (output_layer)(full_model)
 
         model = keras.Model(inputs=[model_frame.input, model_optical.input], outputs=full_model)
