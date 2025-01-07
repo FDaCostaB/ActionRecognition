@@ -18,7 +18,7 @@ def parse_filelist_Stanford40(to_parse_file, keep_category):
         labels = ['_'.join(name.split('_')[:-1]) for name in files]
     return files, labels
 
-
+"""### Visualize a photo from the training files and also print its label"""
 def showFrame(image_no, category=CONST.keep_stanford40):
     train_files, train_labels = parse_filelist_Stanford40('./datasets/Stanford40/ImageSplits/train.txt', [category])
     test_files, test_labels = parse_filelist_Stanford40('./datasets/Stanford40/ImageSplits/test.txt', [category])

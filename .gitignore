@@ -93,6 +93,5 @@ cython_debug/
 # Content of output folder
 output/plots
 
-# Datasets
-datasets/HMDB51
-datasets/Stanford40
+# Preprocess optical flows
+output/OpticalFlows
