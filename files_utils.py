@@ -3,7 +3,7 @@ import cv2
 
 def parse_filelist_Stanford40(to_parse_file, keep_category):
     """
-    Parse a file containing a list of filename for ML training from parse_filelist_Stanford40 dataset
+    Parse a file containing a list of filename for ML training from Stanford40 dataset
 
     Args:
         to_parse_file (file): file containing the list of file to train/test with (according to keep_category).

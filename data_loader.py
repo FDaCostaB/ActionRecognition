@@ -44,12 +44,12 @@ class Dataset:
         else :
             return self.test if split == Dataset.TEST else self.train
 
-    def prepare(self, layout, force_preprocessing=False):
+    def prepare(self, layout, shape, shape_opt_flow, method, frames=None, force_preprocessing=False):
         self.layout = layout
         if layout == Dataset.FRAME or layout == Dataset.TWO_STREAM:
-            self.to_frames(CONST.TARGET_SHAPE)
+            self.to_frames(shape, method)
         if layout == Dataset.OPTICAL_FLOW or layout == Dataset.TWO_STREAM:
-            self.to_opt_flows(CONST.OPT_FLOW_PATH_TRAIN, CONST.OPT_FLOW_PATH_TEST, CONST.TARGET_SHAPE_OPT_FLOW, force_preprocessing)
+            self.to_opt_flows(CONST.OPT_FLOW_PATH_TRAIN, CONST.OPT_FLOW_PATH_TEST, shape_opt_flow, frames, force_preprocessing)
 
         self.tr_labels = np.array([self.action_categories.index(label) for label in self.tr_labels])
         self.tst_labels = np.array([self.action_categories.index(label) for label in self.tst_labels])
@@ -57,14 +57,19 @@ class Dataset:
         self.tr_labels = keras.utils.to_categorical(self.tr_labels, len(self.action_categories))
         self.tst_labels = keras.utils.to_categorical(self.tst_labels, len(self.action_categories))
 
-    def to_frames(self, shape):
+    def to_frames(self, shape, method):
         match self.dataset.lower():
             case 'hmdb51':
                 self.get_middle_frames(shape)
             case 'stanford40':
-                self.resize_frames(shape)
+                if method.lower() == "resize":
+                    self.resize_frames(shape)
+                elif method.lower() == "crop":
+                    self.crop_frames(shape)
+                else:
+                    raise NameError("Unknown method. Verify spelling")
             case _:
-                raise FileNotFoundError("Dataset not available. Verify the spelling")
+                raise FileNotFoundError("Dataset not available. Verify spelling")
 
     def get_middle_frames(self, shape):
         train_frames = []
@@ -91,6 +96,39 @@ class Dataset:
         test_frames = np.array(test_frames)
         self.test[Dataset.FRAME] = test_frames.astype("float32") / 255
 
+    def crop_frames(self, shape):
+        self.tr_frames = []
+        for file_name in self.tr_files:
+            img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
+            (width, height, _) = img.shape
+            if width < 224 or height < 224:
+                img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
+            else:
+                (cropw, croph) = shape
+                x = np.random.randint(0, width - cropw)
+                y = np.random.randint(0, height - croph)
+                # Crop the image
+                img = img[x:x + cropw, y:y + croph]
+            self.tr_frames.append(img)
+        self.tr_frames = np.array(self.tr_frames)
+        self.train[Dataset.FRAME] = self.tr_frames.astype("float32") / 255
+
+        self.tst_frames = []
+        for file_name in self.tst_files:
+            img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
+            (width, height, _) = img.shape
+            if width < 224 or height < 224:
+                img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
+            else:
+                (cropw, croph) = shape
+                x = np.random.randint(0, width - cropw)
+                y = np.random.randint(0, height - croph)
+                # Crop the image
+                img = img[x:x + cropw, y:y + croph]
+            self.tst_frames.append(img)
+        self.tst_frames = np.array(self.tst_frames)
+        self.test[Dataset.FRAME] = self.tst_frames.astype("float32") / 255
+
     def resize_frames(self, shape):
         self.tr_frames = []
         for file_name in self.tr_files:
@@ -103,16 +141,16 @@ class Dataset:
         self.tst_frames = []
         for file_name in self.tst_files:
             img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
-            img = cv2.resize(img, CONST.TARGET_SHAPE, interpolation=cv2.INTER_AREA)
+            img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
             self.tst_frames.append(img)
         self.tst_frames = np.array(self.tst_frames)
         self.test[Dataset.FRAME] = self.tst_frames.astype("float32") / 255
 
-    def to_opt_flows(self, train_path, test_path, shape, force_preprocessing):
+    def to_opt_flows(self, train_path, test_path, shape, frames, force_preprocessing):
         try:
             if force_preprocessing:
-                self.tr_labels, all_opt_train_flows = self.get_opt_flow_from_videos(train_path, "train", shape)
-                self.tst_labels, all_opt_test_flows = self.get_opt_flow_from_videos(test_path, "test", shape)
+                self.tr_labels, all_opt_train_flows = self.get_opt_flow_from_videos(train_path, "train", shape, frames)
+                self.tst_labels, all_opt_test_flows = self.get_opt_flow_from_videos(test_path, "test", shape, frames)
             else:
                 tr_optical_flows = np.load(train_path)
                 ts_optical_flows = np.load(test_path)
@@ -120,13 +158,13 @@ class Dataset:
                 all_opt_train_flows = tr_optical_flows['allOpticalFlows']
                 all_opt_test_flows = ts_optical_flows['allOpticalFlows']
         except FileNotFoundError:
-            self.tr_labels, all_opt_train_flows = self.get_opt_flow_from_videos(train_path, "train", shape)
-            self.tst_labels, all_opt_test_flows = self.get_opt_flow_from_videos(test_path, "test", shape)
+            self.tr_labels, all_opt_train_flows = self.get_opt_flow_from_videos(train_path, "train", shape, frames)
+            self.tst_labels, all_opt_test_flows = self.get_opt_flow_from_videos(test_path, "test", shape, frames)
 
         self.train[Dataset.OPTICAL_FLOW] = np.array(all_opt_train_flows).astype("float32")
         self.test[Dataset.OPTICAL_FLOW] = np.array(all_opt_test_flows).astype("float32")
 
-    def get_opt_flow_from_videos(self, path, split, shape):
+    def get_opt_flow_from_videos(self, path, split, shape, frames):
         all_optical_flow = []
         new_labels = []
         labels = self.tst_labels if split == "test" else self.tr_labels
@@ -135,14 +173,14 @@ class Dataset:
             opt_flow_frames = []
             video = cv2.VideoCapture(f'./datasets/HMDB51/video_data/{labels[i]}/{files[i]}')
             frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            frame_step = int(frame_count / (CONST.OPTICAL_FLOW_FRAMES + 2))
+            frame_step = int(frame_count / (frames + 2))
             video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             ret, frame = video.read()
             frame = cv2.resize(frame, shape, interpolation=cv2.INTER_AREA)
             hsv = np.zeros_like(frame)
             hsv[..., 1] = 255
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            for frameNr in range(CONST.OPTICAL_FLOW_FRAMES):
+            for frameNr in range(frames):
                 video.set(cv2.CAP_PROP_POS_FRAMES, min((frameNr + 1) * frame_step, frame_count))
                 ret, next_frame = video.read()
 
@@ -165,20 +203,56 @@ class Dataset:
         return new_labels, all_optical_flow
 
     @staticmethod
-    def load_stanford40():
+    def split_stanford40():
         train_files, train_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/ImageSplits/train.txt', CONST.keep_stanford40)
         test_files, test_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/ImageSplits/test.txt', CONST.keep_stanford40)
 
         # Combine the splits and split for keeping more images in the training set than the test set.
         all_files = train_files + test_files
         all_labels = train_labels + test_labels
-        train_files, test_files = train_test_split(all_files, test_size=0.1, random_state=0, stratify=all_labels)
+        train_files, test_files = train_test_split(all_files, test_size=CONST.STANFORD_TEST_SIZE, random_state=0, stratify=all_labels)
         train_labels = ['_'.join(name.split('_')[:-1]) for name in train_files]
         test_labels = ['_'.join(name.split('_')[:-1]) for name in test_files]
-        print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
+
+        with open("./datasets/Stanford40/test.txt", "w") as file:
+            # Write each string in the list as a new line in the file
+            for file_name in sorted(test_files):
+                file.write(file_name + "\n")
+
+        with open("./datasets/Stanford40/train.txt", "w") as file:
+            # Write each string in the list as a new line in the file
+            for file_name in sorted(train_files):
+                file.write(file_name + "\n")
+
+        # print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
         action_categories = sorted(list(set(train_labels)))
         return action_categories, train_files, train_labels, test_files, test_labels
 
+    @staticmethod
+    def format(text):
+        match text.lower():
+            case 'frames':
+                return Dataset.FRAME
+            case 'optical flow':
+                return Dataset.OPTICAL_FLOW
+            case 'both':
+                return Dataset.TWO_STREAM
+
+    @staticmethod
+    def load_stanford40():
+        train_files, train_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/train.txt', CONST.keep_stanford40)
+        test_files, test_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/test.txt', CONST.keep_stanford40)
+
+        # Combine the splits and split for keeping more images in the training set than the test set.
+        all_files = train_files + test_files
+        all_labels = train_labels + test_labels
+        train_files, test_files = train_test_split(all_files, test_size=CONST.STANFORD_TEST_SIZE, random_state=0, stratify=all_labels)
+        train_labels = ['_'.join(name.split('_')[:-1]) for name in train_files]
+        test_labels = ['_'.join(name.split('_')[:-1]) for name in test_files]
+
+        # print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
+        action_categories = sorted(list(set(train_labels)))
+        return action_categories, train_files, train_labels, test_files, test_labels
 
     @staticmethod
     def load_hmdb51():
@@ -203,6 +277,6 @@ class Dataset:
                     test_files.append(video_filename)
                     test_labels.append(class_name)
 
-        print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
+        # print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
         action_categories = sorted(list(set(train_labels)))
         return action_categories, train_files, train_labels, test_files, test_labels

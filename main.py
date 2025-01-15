@@ -1,52 +1,56 @@
-from data_loader import Dataset
-from models import Model
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QStackedWidget, QLabel
+import sys
+from GUI import *
 
 
-def train_cnn_standford40():
-    model = Model("cnn", 12)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Human Action Recognition")
 
-    data = Dataset("Stanford40")
-    data.prepare(Dataset.FRAME)
+        # Create the stacked widget to hold different layouts
+        self.stacked_widget = QStackedWidget()
 
-    model.train(data, 0.0005, 50, 10)
-    #model.load()
-    model.test(data)
+        # First layout configuration
+        self.start_widget = StartWidget()
+        load_btn = QPushButton("Load")
+        load_btn.clicked.connect(lambda: self.load_model(True))
+        train_btn = QPushButton("Train")
+        train_btn.clicked.connect(self.go_train_settings)
+        self.start_widget.add_button(load_btn)
+        self.start_widget.add_button(train_btn)
 
+        # Third layout configuration
+        self.res_widget = ResWidget()
+        ResWidget().init_model(self.start_widget.get_model_name())
 
-def finetune_cnn_for_hmdb51():
-    model = Model("cnn_pretrained", 12)
+        self.setting_widget = SettingWidget(self.load_model)
 
-    data = Dataset("HMDB51")
-    data.prepare(Dataset.FRAME)
+        # Add both layouts to the stacked widget
+        self.stacked_widget.addWidget(self.start_widget)
+        self.stacked_widget.addWidget(self.setting_widget)
+        self.stacked_widget.addWidget(self.res_widget)
 
-    #model.train(data, 0.0004, 50, 10)
-    model.load()
-    model.test(data)
+        # Set the initial layout (layout 1 will be shown first)
+        self.stacked_widget.setCurrentIndex(0)
 
-def train_single_stream_optical():
-    model = Model("opt_flow_cnn", 12)
+        # Set the stacked widget as the central widget
+        self.setCentralWidget(self.stacked_widget)
 
-    data = Dataset("HMDB51")
-    data.prepare(Dataset.OPTICAL_FLOW, False)
+    def go_train_settings(self):
+        """Switch to layout 1"""
+        self.stacked_widget.setCurrentIndex(1)
 
-    #model.train(data, 0.0005, 50, 5)
-    model.load()
-    model.test(data)
-
-def train_two_stream_cnn():
-    model = Model("two_stream_cnn", 12)
-
-    data = Dataset("HMDB51")
-    data.prepare(Dataset.TWO_STREAM, False)
-
-    #model.train(data, 0.0002, 50, 5)
-    model.load()
-    model.test(data)
-
+    def load_model(self, goto_results=False):
+        ResWidget().load_model(StartWidget.get_model_name())
+        ResWidget().setPic()
+        if goto_results:
+            self.stacked_widget.setCurrentIndex(2)
 
 if __name__ == '__main__':
-    print("Start")
-    train_cnn_standford40()
-    #finetune_cnn_for_hmdb51()
-    #train_single_stream_optical()
-    #train_two_stream_cnn()
+    # Run the application
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.resize(900, 600)  # Set the window size
+    window.show()
+    sys.exit(app.exec())

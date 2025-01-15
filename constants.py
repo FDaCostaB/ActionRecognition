@@ -1,11 +1,6 @@
 BATCH_SIZE = 64
-TARGET_SHAPE = (112, 112)
-INPUT_SHAPE = (112, 112, 3)
-
+STANFORD_TEST_SIZE = 0.1
 OPTICAL_FLOW_FRAMES = 10
-TARGET_SHAPE_OPT_FLOW = (64, 48)
-INPUT_SHAPE_OPTICAL_FLOW = (64, 48, 3)
-INPUT_OPTICAL_FLOW = (OPTICAL_FLOW_FRAMES, 48, 64, 3)
 
 PLOT_SHOW = False
 PLOT_SAVE = False
@@ -14,6 +9,10 @@ OUTPUT_PATH = './output/'
 PLOT_PATH = OUTPUT_PATH + 'plots/'
 OPT_FLOW_PATH_TRAIN = OUTPUT_PATH + 'OpticalFlows/opticalFlow_train.npz'
 OPT_FLOW_PATH_TEST = OUTPUT_PATH + 'OpticalFlows/opticalFlow_test.npz'
+
+format = ["Frames", "Optical flow", "Both"]
+model = ['cnn', 'cnn_2', 'deep_cnn_2', 'alightnet', 'opt_flow_cnn', 'two_stream_cnn']
+dataset = ['Stanford40', 'HMDB51']
 
 keep_hmdb51 = ["clap", "climb", "drink", "jump", "pour", "ride_bike", "ride_horse",
                "run", "shoot_bow", "smoke", "throw", "wave"]
