@@ -43,6 +43,16 @@ Create a `plots` folder in ./output/
 | `HMDB51`        | `opt_flow`    | 0.244                          | 2.188                      |
 | `HMDB51`        | `two_stream`  | 0.411                          | 1.892                      |
 
+## User interface (Qt/PySide)
+
+### Settings windows
+
+![SettingsWindows-HAR](https://github.com/user-attachments/assets/d6b36e64-4d67-44d6-9f0a-47e6860cd000)
+
+### Prediction windows
+
+![ResultsWindows-HAR](https://github.com/user-attachments/assets/925bf647-dfd5-4212-807e-b35e36d66ff9)
+
 ## Models description
 
 ### cnn
@@ -62,16 +72,6 @@ Create a `plots` folder in ./output/
 
 ### two_stream
 ![two_stream_cnn](https://github.com/user-attachments/assets/9312359f-b134-405e-8b24-ad03a560fccc)
-
-## User interface (Qt/PySide)
-
-### Settings windows
-
-![SettingsWindows-HAR](https://github.com/user-attachments/assets/d6b36e64-4d67-44d6-9f0a-47e6860cd000)
-
-### Prediction windows
-
-![ResultsWindows-HAR](https://github.com/user-attachments/assets/925bf647-dfd5-4212-807e-b35e36d66ff9)
 
 ## Reference
 HMD51 Dataset:
