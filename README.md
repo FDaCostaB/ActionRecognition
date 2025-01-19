@@ -32,6 +32,7 @@ pip install -r /requirements.txt
 Create a `plots` folder in ./output/
 
 ## Performance
+The following result present the performance obtained with the different models. Accuracy and loss can still be improved as below 50% is a low result but decent on 12 categories (clap, climb, drink, jump, pour, ride_bike, ride_horse, run, shoot_bow, smoke, throw, wave). The biggest limitation to further improvements is the target hardware (consummer-grade hardware) so the limited size of the different dataset and the come that come from such a limited sample is the biggest limitations. Overall this is an exploration of what ML is able to achieve in more concrete setup than the usual MNIST hand-written digit with a decent laptop.
 
 ### Accuracy and Loss
 | Dataset         | Model         | Top-1 Validation Accuracy      | Top-1 Validation Loss      |
