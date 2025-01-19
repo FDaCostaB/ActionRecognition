@@ -27,6 +27,7 @@ class Dataset:
             case 'hmdb51':
                 cat, tr_files, tr_labels, tst_files, tst_labels = Dataset.load_hmdb51()
             case 'stanford40':
+                # cat, tr_files, tr_labels, tst_files, tst_labels = Dataset.split_stanford40()
                 cat, tr_files, tr_labels, tst_files, tst_labels = Dataset.load_stanford40()
             case _:
                 raise FileNotFoundError("Dataset not available. Verify the spelling")
@@ -224,7 +225,6 @@ class Dataset:
             for file_name in sorted(train_files):
                 file.write(file_name + "\n")
 
-        # print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
         action_categories = sorted(list(set(train_labels)))
         return action_categories, train_files, train_labels, test_files, test_labels
 
@@ -243,14 +243,6 @@ class Dataset:
         train_files, train_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/train.txt', CONST.keep_stanford40)
         test_files, test_labels = futils.parse_filelist_Stanford40('./datasets/Stanford40/test.txt', CONST.keep_stanford40)
 
-        # Combine the splits and split for keeping more images in the training set than the test set.
-        all_files = train_files + test_files
-        all_labels = train_labels + test_labels
-        train_files, test_files = train_test_split(all_files, test_size=CONST.STANFORD_TEST_SIZE, random_state=0, stratify=all_labels)
-        train_labels = ['_'.join(name.split('_')[:-1]) for name in train_files]
-        test_labels = ['_'.join(name.split('_')[:-1]) for name in test_files]
-
-        # print(f'Test Distribution:{list(Counter(sorted(test_labels)).items())}\n')
         action_categories = sorted(list(set(train_labels)))
         return action_categories, train_files, train_labels, test_files, test_labels
 

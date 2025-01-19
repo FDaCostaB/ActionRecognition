@@ -40,7 +40,7 @@ class Model:
         self.model.compile(loss="categorical_crossentropy", optimizer=opt, metrics=["accuracy"])
 
         cbs = [lr_scheduler.callbacks]
-        if callbacks != None:
+        if callbacks is not None:
             cbs.append(callbacks)
 
         eval = self.model.fit(data.get(Dataset.TRAIN), data.tr_labels, batch_size=CONST.BATCH_SIZE, epochs=epochs,
@@ -55,7 +55,7 @@ class Model:
         plot_model(self.model, to_file=CONST.PLOT_PATH + self.name +".png", show_shapes=True, show_layer_names=True)
         history = np.load(CONST.OUTPUT_PATH + self.name + '_eval.npz')
         history = history['history']
-        if not CONST.PLOT_SAVE and not CONST.PLOT_SHOW:
+        if len(history[0]) > 1:
             self.plot_evaluation(history, len(history[0]))
 
     def test(self, data):
@@ -155,10 +155,10 @@ class Model:
     @staticmethod
     def createOpticalFlowCNN(opt_input_shape, output_size):
         output_layer = layers.Dense(output_size, activation="softmax")
-        (width, height) = opt_input_shape
+        (width, height, _) = opt_input_shape
 
         optical_flow_cnn = Sequential([
-            keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, width, height, 3)),
+            keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, height, width, 3)),
             layers.Conv3D(16, kernel_size=(3, 3, 3), activation="relu"),
             layers.MaxPooling3D(pool_size=(2, 2, 1)),
             layers.Conv3D(32, kernel_size=(3, 3, 3), activation="relu"),
@@ -220,24 +220,24 @@ class Model:
         return aligthnet
 
     @staticmethod
-    def createStandford40TwoStreamCNN(input_shape):
-        stanford40_cnn = Sequential([
+    def createCNN2TwoStreamCNN(input_shape):
+        cnn_2 = Sequential([
             keras.Input(shape=input_shape),
-            layers.Identity(),
-            layers.Conv2D(16, kernel_size=(5, 5), activation="relu"),
+            layers.Conv2D(64, kernel_size=(5, 5), activation="swish"),
             layers.MaxPooling2D(pool_size=(3, 3)),
-            layers.Conv2D(32, kernel_size=(5, 5), activation="relu"),
+            layers.Conv2D(128, kernel_size=(5, 5), activation="swish"),
             layers.MaxPooling2D(pool_size=(3, 3)),
-            layers.Conv2D(64, kernel_size=(5, 5), activation="relu"),
+            layers.Conv2D(256, kernel_size=(5, 5), activation="swish"),
             layers.MaxPooling2D(pool_size=(3, 3)),
         ])
-
-        return stanford40_cnn
+        return cnn_2
 
     @staticmethod
     def createTwoStreamOpticalCNN(input_shape):
+        (width, height, _) = input_shape
+
         optical_flow_cnn = Sequential([
-            keras.Input(shape=input_shape),
+            keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, height, width, 3)),
             layers.Conv3D(16, kernel_size=(3, 3, 3), activation="relu"),
             layers.MaxPooling3D(pool_size=(2, 2, 1)),
             layers.Conv3D(32, kernel_size=(3, 3, 3), activation="relu"),
@@ -256,8 +256,8 @@ class Model:
         model_optical = Model.createTwoStreamOpticalCNN(opt_input_shape)
         trained_model_optical = load_model(CONST.OUTPUT_PATH + "opt_flow_cnn")
 
-        model_frame = Model.createStandford40TwoStreamCNN(input_shape)
-        trained_model_frame = load_model(CONST.OUTPUT_PATH + "cnn")
+        model_frame = Model.createCNN2TwoStreamCNN(input_shape)
+        trained_model_frame = load_model(CONST.OUTPUT_PATH + "cnn_2")
         for i in range(len(model_optical.layers)):
             model_optical.layers[i].set_weights(trained_model_optical.layers[i].get_weights())
 
