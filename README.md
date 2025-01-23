@@ -39,15 +39,25 @@ python manager.py
 ## Performance
 The following result present the performance obtained with the different models. Accuracy and loss can still be improved as below 50% is a low result but decent on 12 categories (clap, climb, drink, jump, pour, ride_bike, ride_horse, run, shoot_bow, smoke, throw, wave). The biggest limitation to further improvements is the target hardware (consummer-grade hardware) so the limited size of the different dataset and the come that come from such a limited sample is the biggest limitations. Overall this is an exploration of what ML is able to achieve in more concrete setup than the usual MNIST hand-written digit with a decent laptop.
 
-### Accuracy and Loss
-| Dataset         | Model         | Top-1 Validation Accuracy      | Top-1 Validation Loss      |
+### Original result w/ different model architectures
+| Dataset         | Format        | Top-1 Validation Accuracy      | Top-1 Validation Loss      |
 | :--------       | :-------      | :---------                     |:-----                      |
-| `Stanford40`    | `cnn`         | 0.421                          | 1.759                      |
-| `Stanford40`    | `cnn_2`       | 0.473                          | 1.649                      |
-| `Stanford40`    | `deep_cnn_2`  | 0.476                          | 1.720                      |
-| `Stanford40`    | `alightnet`   | 0.348                          | 1.942                      |
-| `HMDB51`        | `opt_flow`    | 0.244                          | 2.188                      |
-| `HMDB51`        | `two_stream`  | 0.411                          | 1.892                      |
+| `Stanford40`    | `Frames`      | 0.434                          | 0.571                      |
+| `HMDB51`        | `Frames`      | 0.258                          | 1.903                      |
+| `HMDB51`        | `Opt. Flow`   | 0.181                          | 2.334                      |
+| `HMDB51`        | `Both`        | 0.327                          | (Missing)                  |
+
+### Accuracy and Loss
+| Dataset         | Model         | Format        | Top-1 Validation Accuracy      | Top-1 Validation Loss      |
+| :--------       | :-------      | :-------      | :---------                     |:-----                      |
+| `Stanford40`    | `cnn`         | `Frames`      | 0.421                          | 1.759                      |
+| `Stanford40`    | `cnn_2`       | `Frames`      | 0.503                          | 1.617                      |
+| `HMDB51`        | `cnn_2`       | `Frames`      | 0.316                          | 1.972                      |
+| `Stanford40`    | `deep_cnn_2`  | `Frames`      | 0.476                          | 1.720                      |
+| `Stanford40`    | `alightnet`   | `Frames`      | 0.348                          | 1.942                      |
+| `HMDB51`        | `opt_flow`    | `Opt. Flow`   | 0.244                          | 2.188                      |
+| `HMDB51`        | `opt_flow_2`  | `Opt. Flow`   | 0.308                          | 2.186                      |
+| `HMDB51`        | `two_stream`  | `Both`        | 0.419                          | 1.820                      |
 
 ## User interface (Qt/PySide)
 
