@@ -11,8 +11,9 @@ OPT_FLOW_PATH_TRAIN = OUTPUT_PATH + 'OpticalFlows/opticalFlow_train.npz'
 OPT_FLOW_PATH_TEST = OUTPUT_PATH + 'OpticalFlows/opticalFlow_test.npz'
 
 format = ["Frames", "Optical flow", "Both"]
-model = ['cnn', 'cnn_2', 'deep_cnn_2', 'alightnet', 'opt_flow_cnn', 'two_stream_cnn']
+model = ['cnn', 'cnn_2', 'deep_cnn_2', 'alightnet', 'opt_flow_cnn', 'opt_flow_cnn_2', 'two_stream_cnn']
 dataset = ['Stanford40', 'HMDB51']
+scheduler_types = ["Smooth decay", "Factor", "Plateau", "Triangular"]
 
 keep_hmdb51 = ["clap", "climb", "drink", "jump", "pour", "ride_bike", "ride_horse",
                "run", "shoot_bow", "smoke", "throw", "wave"]

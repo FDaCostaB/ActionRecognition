@@ -8,6 +8,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.handler = ModelHandler()
+        self.handler.result_ready.connect(self.go_results)
 
         self.setWindowTitle("Human Action Recognition")
 
@@ -15,7 +16,7 @@ class MainWindow(QMainWindow):
         self.stacked_widget = QStackedWidget()
 
         # First layout configuration
-        self.setting_widget = SettingWidget(self.handler, self.go_results)
+        self.setting_widget = SettingWidget(self.handler)
 
         # Second layout configuration
         self.res_widget = ResWidget(self.handler.predict)

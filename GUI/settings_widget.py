@@ -6,23 +6,23 @@ import constants as CONST
 
 
 class SettingWidget(QWidget):
-    def __init__(self, handler, go_result):
+    def __init__(self, handler):
         super().__init__()
         self.on_model_change = handler.init_model
         self.set_data = handler.set_data
         self.set_learning_params = handler.set_learning_params
-        self.load_model = handler.load_test_model
+        self.load_test_model = handler.load_test_model
+        self.load_current = handler.load_current
         self.train_model = handler.train_model
         self.stop_train = handler.stop_train
-        self.go_result = go_result
 
         handler.progress.connect(self.update_progress)
         handler.stopped.connect(self.task_stopped)
+        handler.status.connect(self.set_status)
         handler.on_test_finish.connect(self.test_finished)
 
         # Create a button to trigger the dropdown menu
         model_dropdown = self.create_dropdown_menu(CONST.model, [self.on_model_change])
-        self.on_model_change(CONST.model[0])
 
         self.dataset_group = QButtonGroup(self)
         dataset_selection = self.create_radio_group("Dataset", CONST.dataset, self.dataset_group)
@@ -30,6 +30,9 @@ class SettingWidget(QWidget):
         self.format_group = QButtonGroup(self)
         input_format = self.create_radio_group("Format", CONST.format, self.format_group)
         self.format = CONST.format[0]
+        self.scheduler_group = QButtonGroup(self)
+        scheduler_type = self.create_radio_group("Scheduler", CONST.scheduler_types, self.scheduler_group)
+        self.scheduler = CONST.scheduler_types[0]
 
         # Define the range and precision
         self.min_value = 0.0001
@@ -75,6 +78,12 @@ class SettingWidget(QWidget):
         epoch_layout.addWidget(epoch_slider)
         epoch_layout.addWidget(self.epoch_label)
 
+        info_layout = QHBoxLayout()
+        self.info_label = QLabel("Status")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setMaximumHeight(20)
+        info_layout.addWidget(self.info_label)
+
         # Create the progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)      # Set range from 0 to 100
@@ -93,37 +102,42 @@ class SettingWidget(QWidget):
 
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.clicked.connect(lambda: self.on_model_change())
-        self.load_btn = QPushButton("Load")
-        self.load_btn.clicked.connect(self.load_test)
+        self.test_btn = QPushButton("Test")
+        self.test_btn.clicked.connect(self.test_model)
         self.next_btn = QPushButton("Next")
         self.next_btn.clicked.connect(self.next)
 
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(self.reset_btn)
-        btn_layout.addWidget(self.load_btn)
+        btn_layout.addWidget(self.test_btn)
         btn_layout.addWidget(self.next_btn)
 
         self.layout = QVBoxLayout(self)
         self.layout.addLayout(model_dropdown)
         self.layout.addLayout(dataset_selection)
         self.layout.addLayout(input_format)
+        self.layout.addLayout(scheduler_type)
         self.layout.addLayout(lr_layout)
         self.layout.addLayout(epoch_layout)
         self.layout.addLayout(train_layout)
+        self.layout.addLayout(info_layout)
         self.layout.addLayout(btn_layout)
+        
+        self.on_model_change(CONST.model[0])
+        self.set_data(self.dataset_name, self.format)
 
     def start_task(self):
         """
         Starts the worker thread to execute the long-running task.
         """
         self.train_btn.setEnabled(False)
-        self.load_btn.setEnabled(False)
+        self.test_btn.setEnabled(False)
         self.reset_btn.setEnabled(False)
         self.next_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
         self.progress_bar.setValue(0)
         self.set_data(self.dataset_name, self.format)
-        self.set_learning_params(self.lr, self.epoch)
+        self.set_learning_params(self.lr, self.epoch, self.scheduler)
         self.train_model()
 
     def stop_task(self):
@@ -132,15 +146,26 @@ class SettingWidget(QWidget):
         self.progress_bar.setValue(0)
         self.stop_btn.setEnabled(False)
         self.train_btn.setEnabled(True)
-        self.load_btn.setEnabled(True)
+        self.test_btn.setEnabled(True)
         self.reset_btn.setEnabled(True)
         self.next_btn.setEnabled(True)
+
+    def next(self):
+        self.train_btn.setEnabled(False)
+        self.test_btn.setEnabled(False)
+        self.reset_btn.setEnabled(False)
+        self.next_btn.setEnabled(False)
+        self.stop_btn.setEnabled(False)
+        self.load_current()
 
     def update_progress(self, value):
         """
         Updates the progress label based on the signal from the worker thread.
         """
         self.progress_bar.setValue(value)
+
+    def set_status(self, text):
+        self.info_label.setText(text)
 
     def update_lr(self, value):
         """Update the label with the current floating-point value."""
@@ -159,21 +184,17 @@ class SettingWidget(QWidget):
         self.stop_btn.setEnabled(False)
         self.train_btn.setEnabled(True)
         self.next_btn.setEnabled(True)
-        self.load_btn.setEnabled(True)
+        self.test_btn.setEnabled(True)
         self.reset_btn.setEnabled(True)
 
-    def load_test(self):
+    def test_model(self):
         self.set_data(self.dataset_name, self.format)
         self.stop_btn.setEnabled(False)
         self.train_btn.setEnabled(False)
-        self.load_btn.setEnabled(False)
+        self.test_btn.setEnabled(False)
         self.reset_btn.setEnabled(False)
         self.next_btn.setEnabled(False)
-        self.load_model()
-
-    def next(self):
-        self.load_model()
-        self.go_result()
+        self.load_test_model()
 
     def task_stopped(self):
         """
@@ -231,6 +252,9 @@ class SettingWidget(QWidget):
         elif category.lower() == "format":
             selected_radio = self.format_group.checkedButton()
             self.format = selected_radio.text()
+        elif category.lower() == "scheduler":
+            selected_radio = self.scheduler_group.checkedButton()
+            self.scheduler = selected_radio.text()
 
     def create_action(self, menu, text, callbacks):
         action = QAction(text, self)

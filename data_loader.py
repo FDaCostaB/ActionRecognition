@@ -38,6 +38,7 @@ class Dataset:
         self.tst_labels = tst_labels
         self.train = [[], []]
         self.test = [[], []]
+        self.prepare_progress = lambda value: None
 
     def get(self, split):
         if self.layout != Dataset.TWO_STREAM:
@@ -82,6 +83,7 @@ class Dataset:
             ret, frame = video.read()
             frame = cv2.resize(frame, shape, interpolation=cv2.INTER_AREA)
             train_frames.append(frame)
+            self.prepare_progress(i/len(self.tr_files) * 0.5)
         train_frames = np.array(train_frames)
         self.train[Dataset.FRAME] = train_frames.astype("float32") / 255
 
@@ -94,11 +96,13 @@ class Dataset:
             ret, frame = video.read()
             frame = cv2.resize(frame, shape, interpolation=cv2.INTER_AREA)
             test_frames.append(frame)
+            self.prepare_progress((i / len(self.tst_files) * 0.5) + 0.5)
         test_frames = np.array(test_frames)
         self.test[Dataset.FRAME] = test_frames.astype("float32") / 255
 
     def crop_frames(self, shape):
         self.tr_frames = []
+        i = 0
         for file_name in self.tr_files:
             img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
             (width, height, _) = img.shape
@@ -111,10 +115,13 @@ class Dataset:
                 # Crop the image
                 img = img[x:x + cropw, y:y + croph]
             self.tr_frames.append(img)
+            i = i + 1
+            self.prepare_progress(i / (len(self.tr_files) + len(self.tst_files)))
         self.tr_frames = np.array(self.tr_frames)
         self.train[Dataset.FRAME] = self.tr_frames.astype("float32") / 255
 
         self.tst_frames = []
+        i = 0
         for file_name in self.tst_files:
             img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
             (width, height, _) = img.shape
@@ -127,23 +134,31 @@ class Dataset:
                 # Crop the image
                 img = img[x:x + cropw, y:y + croph]
             self.tst_frames.append(img)
+            i = i + 1
+            self.prepare_progress((len(self.tr_files)+i) / (len(self.tr_files) + len(self.tst_files)))
         self.tst_frames = np.array(self.tst_frames)
         self.test[Dataset.FRAME] = self.tst_frames.astype("float32") / 255
 
     def resize_frames(self, shape):
         self.tr_frames = []
+        i = 0
         for file_name in self.tr_files:
             img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
             img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
             self.tr_frames.append(img)
+            i = i + 1
+            self.prepare_progress(i / (len(self.tr_files) + len(self.tst_files)))
         self.tr_frames = np.array(self.tr_frames)
         self.train[Dataset.FRAME] = self.tr_frames.astype("float32") / 255
 
         self.tst_frames = []
+        i = 0
         for file_name in self.tst_files:
             img = cv2.imread(f'./datasets/Stanford40/JPEGImages/{file_name}')
             img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
             self.tst_frames.append(img)
+            i = i + 1
+            self.prepare_progress((len(self.tr_files)+i) / (len(self.tr_files) + len(self.tst_files)))
         self.tst_frames = np.array(self.tst_frames)
         self.test[Dataset.FRAME] = self.tst_frames.astype("float32") / 255
 
@@ -170,6 +185,8 @@ class Dataset:
         new_labels = []
         labels = self.tst_labels if split == "test" else self.tr_labels
         files = self.tst_files if split == "test" else self.tr_files
+        init_percent = 0.84 if split == "test" else 0
+        ratio_percent = 0.26 if split == "test" else 0.84
         for i in range(len(labels)):
             opt_flow_frames = []
             video = cv2.VideoCapture(f'./datasets/HMDB51/video_data/{labels[i]}/{files[i]}')
@@ -198,7 +215,7 @@ class Dataset:
                 frame = next_frame
             all_optical_flow.append(opt_flow_frames)
             new_labels.append(labels[i])
-            print(f"{i}/{len(labels)}")
+            self.prepare_progress(((i + 1) / len(labels) * ratio_percent) + init_percent)
         np.savez(path, allOpticalFlows = all_optical_flow)
 
         return new_labels, all_optical_flow

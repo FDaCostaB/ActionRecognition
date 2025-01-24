@@ -27,6 +27,8 @@ class Model:
                 self.model = Model.createDeepCNN2(input_shape, nb_category)
             case "opt_flow_cnn":
                 self.model = Model.createOpticalFlowCNN(opt_input_shape, nb_category)
+            case "opt_flow_cnn_2":
+                self.model = Model.createOpticalFlowCNN2(opt_input_shape, nb_category)
             case "two_stream_cnn":
                 self.model = Model.createTwoStreamCNN(input_shape, opt_input_shape, nb_category)
             case "alightnet":
@@ -53,10 +55,6 @@ class Model:
     def load(self):
         self.model = load_model(CONST.OUTPUT_PATH + self.name)
         plot_model(self.model, to_file=CONST.PLOT_PATH + self.name +".png", show_shapes=True, show_layer_names=True)
-        history = np.load(CONST.OUTPUT_PATH + self.name + '_eval.npz')
-        history = history['history']
-        if len(history[0]) > 1:
-            self.plot_evaluation(history, len(history[0]))
 
     def test(self, data):
         print("Start Testing")
@@ -80,9 +78,15 @@ class Model:
         print("Global Loss", score[0])
         print("Global accuracy:", score[1])
 
-    def plot_evaluation(self, history, epochs):
-        plot.plotLossToEpoch(history, self.name, epochs)
-        plot.plotAccToEpoch(history, self.name, epochs)
+    def plot_evaluation(self):
+        history = np.load(CONST.OUTPUT_PATH + self.name + '_eval.npz')
+        history = history['history']
+        if len(history[0]) > 1:
+            plot.plotLossToEpoch(history, self.name, len(history[0]))
+            plot.plotAccToEpoch(history, self.name, len(history[0]))
+
+    def get_lr(self):
+        return float(self.model.optimizer.learning_rate)
 
     @staticmethod
     def createStandford40CNN(input_shape, output_size, do_data_augment):
@@ -175,6 +179,50 @@ class Model:
         return optical_flow_cnn
 
     @staticmethod
+    def createOpticalFlowCNN2(opt_input_shape, output_size):
+        output_layer = layers.Dense(output_size, activation="softmax")
+        (width, height, _) = opt_input_shape
+
+        cnn_2 = Sequential([
+            keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, height, width, 3)),
+            layers.Conv3D(64, kernel_size=(2, 5, 5), activation="swish"),
+            layers.MaxPooling3D(pool_size=(1, 3, 4)),
+            layers.Conv3D(128, kernel_size=(2, 2, 4), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 2, 2)),
+            layers.Conv3D(256, kernel_size=(3, 2, 3), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 2, 2)),
+            layers.Flatten(),
+            layers.Dense(256, activation="swish"),
+            layers.Dropout(0.6),
+            layers.Dense(256, activation="swish"),
+            layers.Dropout(0.6),
+            output_layer,
+        ])
+        return cnn_2
+
+    @staticmethod
+    def createOpticalFlowCNN3(opt_input_shape, output_size):
+        output_layer = layers.Dense(output_size, activation="softmax")
+        (width, height, _) = opt_input_shape
+
+        cnn_2 = Sequential([
+            keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, height, width, 3)),
+            layers.Conv3D(64, kernel_size=(3, 5, 5), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 4, 4)),
+            layers.Conv3D(128, kernel_size=(2, 2, 4), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 2, 2)),
+            layers.Conv3D(256, kernel_size=(1, 2, 3), activation="swish"),
+            layers.MaxPooling3D(pool_size=(1, 2, 2)),
+            layers.Flatten(),
+            layers.Dense(256, activation="swish"),
+            layers.Dropout(0.6),
+            layers.Dense(256, activation="swish"),
+            layers.Dropout(0.6),
+            output_layer,
+        ])
+        return cnn_2
+
+    @staticmethod
     def createAlightNet(input_shape, output_size):
         output_layer = layers.Dense(output_size, activation="softmax")
         # Define the AlexNet model
@@ -238,12 +286,12 @@ class Model:
 
         optical_flow_cnn = Sequential([
             keras.Input(shape=(CONST.OPTICAL_FLOW_FRAMES, height, width, 3)),
-            layers.Conv3D(16, kernel_size=(3, 3, 3), activation="relu"),
-            layers.MaxPooling3D(pool_size=(2, 2, 1)),
-            layers.Conv3D(32, kernel_size=(3, 3, 3), activation="relu"),
-            layers.MaxPooling3D(pool_size=(1, 2, 2)),
-            layers.Conv3D(32, kernel_size=(2, 3, 3), activation="relu"),
-            layers.MaxPooling3D(pool_size=(1, 2, 2)),
+            layers.Conv3D(64, kernel_size=(2, 5, 5), activation="swish"),
+            layers.MaxPooling3D(pool_size=(1, 3, 4)),
+            layers.Conv3D(128, kernel_size=(2, 2, 4), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 2, 2)),
+            layers.Conv3D(256, kernel_size=(3, 2, 3), activation="swish"),
+            layers.MaxPooling3D(pool_size=(2, 2, 2)),
         ])
 
         return optical_flow_cnn
@@ -254,7 +302,7 @@ class Model:
         output_layer = layers.Dense(output_size, activation="softmax")
 
         model_optical = Model.createTwoStreamOpticalCNN(opt_input_shape)
-        trained_model_optical = load_model(CONST.OUTPUT_PATH + "opt_flow_cnn")
+        trained_model_optical = load_model(CONST.OUTPUT_PATH + "opt_flow_cnn_2")
 
         model_frame = Model.createCNN2TwoStreamCNN(input_shape)
         trained_model_frame = load_model(CONST.OUTPUT_PATH + "cnn_2")
@@ -264,13 +312,13 @@ class Model:
         for i in range(len(model_frame.layers)):
             model_frame.layers[i].set_weights(trained_model_frame.layers[i].get_weights())
 
-        full_model = concatenate([model_frame.output, tf.reshape(model_optical.output, shape=(-1, 2, 2, 448))])
+        full_model = concatenate([model_frame.output, tf.reshape(model_optical.output, shape=(-1, 2, 2, 256))])
         full_model = (layers.Flatten())(full_model)
-        full_model = (layers.Dense(2048, activation="relu"))(full_model)
-        full_model = (layers.Dropout(0.5))(full_model)
+        full_model = (layers.Dense(1024, activation="relu"))(full_model)
+        full_model = (layers.Dropout(0.6))(full_model)
         full_model = (layers.Dense(512, activation="relu"))(full_model)
         full_model = (layers.Dropout(0.5))(full_model)
-        full_model = (layers.Dense(128, activation="relu"))(full_model)
+        full_model = (layers.Dense(512, activation="relu"))(full_model)
         full_model = (layers.Dropout(0.5))(full_model)
         full_model = (output_layer)(full_model)
 

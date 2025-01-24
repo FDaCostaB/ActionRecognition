@@ -13,8 +13,10 @@ class ModelHandler(QObject):
     A worker thread to handle a long-running task.
     """
     progress = Signal(int)  # Signal to send progress updates to the main thread
+    status = Signal(str)  # Signal to send progress updates to the main thread
     stopped = Signal()  # Signal emitted when the task is stopped
     on_test_finish = Signal()  # Signal emitted when the task is stopped
+    result_ready = Signal()  # Signal emitted when the task is stopped
 
     def __init__(self):
         super().__init__()
@@ -41,30 +43,30 @@ class ModelHandler(QObject):
         self.in_format = Dataset.format(in_format)
         self.data_initialized = True
 
-    def set_learning_params(self, lr, epochs):
+    def set_learning_params(self, lr, epochs, scheduler):
         self.lr = lr
         self.epochs = epochs
-        print(f"Training - lr: {lr} - epochs: {epochs}")
+        self.scheduler = lrScheduler(lrScheduler.FromText(scheduler), factor=0.33, patience=2, base_lr=lr*0.5)
+        print(f"Training - lr: {lr:.4f} - epochs: {epochs} - scheduler: {scheduler}")
         self.params_initialized = True
 
     def init_model(self, model_name=None):
         if model_name is not None:
             self.model_name = model_name
-        print(f"Model initialized : {self.model_name}")
+        self.status.emit(f"Model initialized : {self.model_name}")
         self.model = Model(self.model_name, (112, 112, 3), (64, 48, 3), 12)
         self.model_initialized = True
 
     def train_model(self):
         if self._is_trainable():
-
-            scheduler = lrScheduler(lrScheduler.REDUCE_PLATEAU, factor=0.33, patience=2)
-            self.trainer_thread = TrainerThread(True, self.model, self.dataset_name, self.in_format, self.lr, self.epochs, scheduler)
-
-            print(f"epochs : {self.epochs} - lr : {self.lr} - format : {self.in_format} - Dataset : {self.dataset_name}")
+            if self.trainer_thread is None:
+                self.trainer_thread = TrainerThread(True, True, True, self.model, self.dataset_name, self.in_format, self.lr, self.epochs, self.scheduler)
+                self.trainer_thread.status.connect(lambda text: self.status.emit(text))
+            else:
+                self.trainer_thread.set(True, True, True, self.model, self.dataset_name, self.in_format, self.lr, self.epochs, self.scheduler)
             self.trainer_thread.progress.connect(self.update_progress)
+            self.trainer_thread.test_ended.connect(self.test_finished)
             self.trainer_thread.stopped.connect(self.task_stopped)
-            self.trainer_thread.train_ended.connect(self.train_finished)
-            # self.trainer_thread.finished.connect(lambda: print("--FINISHED--"))
             self.trainer_thread.start()
         else:
             raise ValueError("Incorrect initialization")
@@ -75,23 +77,31 @@ class ModelHandler(QObject):
     def task_stopped(self):
         self.stopped.emit()
 
-    def train_finished(self):
-        self.load_test_model()
-
     def test_finished(self):
+        self.model.plot_evaluation()
         self.on_test_finish.emit()
 
     def stop_train(self):
         self.trainer_thread.stop()
 
-    def load_test_model(self):
+    def load_test_model(self, do_load=True, do_test=True, go_result=False):
         if self._is_initialized():
-            print(f"Model loaded : {self.model.name}")
-            self.trainer_thread = TrainerThread(False, self.model, self.dataset_name, self.in_format)
-            self.trainer_thread.train_ended.connect(self.test_finished)
+            if self.trainer_thread is None:
+                self.trainer_thread = TrainerThread(do_load, False, do_test, self.model, self.dataset_name, self.in_format)
+                self.trainer_thread.status.connect(lambda text: self.status.emit(text))
+            else:
+                self.trainer_thread.set(do_load, False, do_test, self.model, self.dataset_name, self.in_format, self.lr,
+                                        self.epochs, self.scheduler)
+            self.trainer_thread.test_ended.connect(self.test_finished)
+            self.trainer_thread.progress.connect(self.update_progress)
+            if go_result:
+                self.trainer_thread.model_loaded.connect(lambda: self.result_ready.emit())
             self.trainer_thread.start()
         else:
             raise ValueError("Incorrect initialization")
+
+    def load_current(self):
+        self.load_test_model(False, False, True)
 
     def predict(self, path):
         img = self.resize_frames(path, (112, 112))
