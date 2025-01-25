@@ -90,6 +90,8 @@ The following result present the performance obtained with the different models.
 ![two_stream_cnn](https://github.com/user-attachments/assets/9312359f-b134-405e-8b24-ad03a560fccc)
 
 ## Reference
+Original repo made in team with [Fannollost](https://github.com/Fannollost)
+
 HMD51 Dataset:
 H. Kuehne, H. Jhuang, E. Garrote, T. Poggio, and T. Serre. HMDB: A Large Video Database for Human Motion Recognition. ICCV, 2011.
 
