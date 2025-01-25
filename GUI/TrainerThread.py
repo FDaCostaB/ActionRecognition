@@ -9,11 +9,12 @@ class TrainerThread(QThread):
     """
     A worker thread to handle a long-running task.
     """
-    progress = Signal(int)  # Signal to send progress updates to the main thread
-    lr = Signal(float)  # Signal to send progress updates to the main thread
-    stopped = Signal()  # Signal emitted when the task is stopped
-    model_loaded = Signal()  # Signal emitted when testing is stopped
-    test_ended = Signal()  # Signal emitted when testing is stopped
+    progress = Signal(int)      # Signal to send progress updates to the main thread
+    lr = Signal(float)          # Signal to send lr evolution to the main thread
+    stopped = Signal()          # Signal emitted when the task is stopped
+    model_loaded = Signal()     # Signal emitted when model is loaded
+    test_ended = Signal()       # Signal emitted when testing is stopped
+    data_loaded = Signal()      # Signal emitted when data is loaded
     status = Signal(str)
 
     def __init__(self, do_load, do_train, do_test, model, dataset_name, format, lr=None, epochs=None, scheduler=None):
@@ -54,6 +55,8 @@ class TrainerThread(QThread):
             self.data = self.prepare_data(self.dataset_name, self.in_format, (112, 112), (64, 48), 10, callback=self.progress_callback)
             self.status.emit(f"Data ready")
             self.progress.emit(100)
+            if self._is_running:
+                self.data_loaded.emit()
         if self.do_train:
             self.status.emit(f"Training Model")
             self.model.train(self.data, self.lr, self.total_epochs, self.scheduler, self.custom_callback)
@@ -99,6 +102,9 @@ class TrainerThread(QThread):
 
     def progress_callback(self, value):
         self.progress.emit(round(value * 99))
+
+    def get_data(self):
+        return self.data
 
     @staticmethod
     def prepare_data(dataset_name, layout, shape=None, shape_opt=None, frames=None, method="resize", callback=None):

@@ -43,6 +43,9 @@ class ModelHandler(QObject):
         self.in_format = Dataset.format(in_format)
         self.data_initialized = True
 
+    def get_data(self):
+        return self.trainer_thread.get_data()
+
     def set_learning_params(self, lr, epochs, scheduler):
         self.lr = lr
         self.epochs = epochs
@@ -101,13 +104,11 @@ class ModelHandler(QObject):
             raise ValueError("Incorrect initialization")
 
     def load_current(self):
-        self.load_test_model(False, False, True)
+        self.load_test_model(True, False, True)
 
-    def predict(self, path):
-        img = self.resize_frames(path, (112, 112))
-        input_img = np.expand_dims(img, axis=0)
-        [res] = self.model.model(input_img, training=False)
-        res = [(CONST.keep_stanford40[idx], res.numpy()[idx]) for idx in np.argsort(res)[-3:]]
+    def predict(self, input, categories):
+        [res] = self.model.model(input, training=False)
+        res = [(categories[idx], res.numpy()[idx]) for idx in np.argsort(res)[-3:]]
         return res
 
     def _is_initialized(self):

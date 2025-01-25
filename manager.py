@@ -31,8 +31,8 @@ class MainWindow(QMainWindow):
         # Set the stacked widget as the central widget
         self.setCentralWidget(self.stacked_widget)
 
-
     def go_results(self):
+        self.res_widget.set_pics(self.setting_widget.get_data())
         self.res_widget.setPic()
         self.stacked_widget.setCurrentIndex(1)
 

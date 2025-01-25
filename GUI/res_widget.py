@@ -1,11 +1,9 @@
-import os
-import constants as CONST
-import files_utils as futils
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt, Slot
-from model_handler import ModelHandler
+from data_loader import Dataset
 
-
+import cv2
+import numpy as np
 
 class ResWidget(QtWidgets.QWidget):
 
@@ -13,7 +11,6 @@ class ResWidget(QtWidgets.QWidget):
         super().__init__()
         self.folder_path = "datasets/Stanford40/JPEGImages/"
         # List all files in the folder
-        self.files, _ = futils.parse_filelist_Stanford40("./datasets/Stanford40/test.txt", CONST.keep_stanford40)
         self.index = 0
 
         self.predict = predict
@@ -46,26 +43,47 @@ class ResWidget(QtWidgets.QWidget):
         self.layout.addWidget(self.pic)
         self.layout.addLayout(self.btn_layout)
 
+        self.pics = None
+        self.labels = None
+        self.categories = None
+        self.input_data = None
+        self.is_two_stream = False
         self.batch_amount = None
+
+    def set_pics(self, dataset):
+        self.input_data = dataset.get(Dataset.TEST)
+        if dataset.layout == Dataset.TWO_STREAM:
+            self.pics = self.input_data[Dataset.FRAME]
+            self.is_two_stream = True
+        else:
+            self.pics = self.input_data
+        alpha = np.ones(self.pics.shape[:-1] + (1,), dtype=self.pics.dtype)
+        self.pics = [cv2.cvtColor(pic, cv2.COLOR_BGR2RGB) for pic in self.pics]
+        self.pics = np.concatenate((self.pics, alpha), axis=-1)
+        self.labels = [dataset.action_categories[i] for i in np.argmax(dataset.tst_labels, axis=1)]
+        self.categories = dataset.action_categories
 
     @Slot()
     def next(self):
-        self.index = (self.index + 1) % len(self.files)
+        self.index = (self.index + 1) % len(self.pics)
         self.setPic()
         return
 
     @Slot()
     def prev(self):
-        self.index = (self.index - 1) % len(self.files)
+        self.index = (self.index - 1) % len(self.pics)
         self.setPic()
         return
 
     def setPic(self):
-        self.pixmap = QtGui.QPixmap(os.path.join(self.folder_path, self.files[self.index]))
+        self.pixmap = QtGui.QPixmap(QtGui.QImage(self.pics[self.index], 112, 112, QtGui.QImage.Format.Format_RGBA32FPx4))
         self.pixmap = self.pixmap.scaled(300, 400, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
-        category = ('_'.join(self.files[self.index].split('_')[:-1]))
-        res = self.predict(str(os.path.join(self.folder_path, self.files[self.index])))
+        category = self.labels[self.index]
+        if self.is_two_stream:
+            res = self.predict([np.expand_dims(self.input_data[0][self.index], axis=0), np.expand_dims(self.input_data[1][self.index], axis=0)], self.categories)
+        else:
+            res = self.predict(np.expand_dims(self.input_data[self.index], axis=0), self.categories)
 
         self.display_prediction(self.pred_1, res[2], category)
         self.display_prediction(self.pred_2, res[1], category)

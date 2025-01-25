@@ -15,24 +15,46 @@ class SettingWidget(QWidget):
         self.load_current = handler.load_current
         self.train_model = handler.train_model
         self.stop_train = handler.stop_train
+        self.get_data = handler.get_data
 
         handler.progress.connect(self.update_progress)
         handler.stopped.connect(self.task_stopped)
         handler.status.connect(self.set_status)
         handler.on_test_finish.connect(self.test_finished)
 
-        # Create a button to trigger the dropdown menu
-        model_dropdown = self.create_dropdown_menu(CONST.model, [self.on_model_change])
+        self.reset_btn = QPushButton("Reset")
+        self.reset_btn.clicked.connect(lambda: self.on_model_change())
+        self.test_btn = QPushButton("Test")
+        self.test_btn.clicked.connect(self.test_model)
+        self.next_btn = QPushButton("Next")
+        self.next_btn.clicked.connect(self.next)
 
-        self.dataset_group = QButtonGroup(self)
-        dataset_selection = self.create_radio_group("Dataset", CONST.dataset, self.dataset_group)
-        self.dataset_name = CONST.dataset[0]
-        self.format_group = QButtonGroup(self)
-        input_format = self.create_radio_group("Format", CONST.format, self.format_group)
-        self.format = CONST.format[0]
-        self.scheduler_group = QButtonGroup(self)
-        scheduler_type = self.create_radio_group("Scheduler", CONST.scheduler_types, self.scheduler_group)
-        self.scheduler = CONST.scheduler_types[0]
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.reset_btn)
+        btn_layout.addWidget(self.test_btn)
+        btn_layout.addWidget(self.next_btn)
+
+        info_layout = QHBoxLayout()
+        self.info_label = QLabel("Status")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.info_label.setMaximumHeight(20)
+        info_layout.addWidget(self.info_label)
+
+        # Create the progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)  # Set range from 0 to 100
+        self.progress_bar.setValue(0)  # Initial value is 0
+        self.progress_bar.setTextVisible(True)  # Show the percentage in the bar
+
+        train_layout = QHBoxLayout()
+        train_layout.addWidget(self.progress_bar)
+        self.train_btn = QPushButton("Train")
+        self.train_btn.clicked.connect(self.start_task)
+        train_layout.addWidget(self.train_btn)
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self.stop_task)
+        train_layout.addWidget(self.stop_btn)
 
         # Define the range and precision
         self.min_value = 0.0001
@@ -41,24 +63,6 @@ class SettingWidget(QWidget):
 
         # Calculate the slider range
         self.slider_steps = int((self.max_value - self.min_value) / self.precision)
-
-        # Create the slider
-        self.lr = 0.0006
-        lr_slider = QSlider(Qt.Horizontal)
-        lr_slider.setMaximumHeight(20)
-        lr_slider.setMinimum(0)
-        lr_slider.setMaximum(self.slider_steps)
-        lr_slider.setValue(int((self.lr-self.min_value) / self.precision)+1)
-        lr_slider.valueChanged.connect(self.update_lr)
-
-        # Create a label to display the current value
-        self.lr_label = QLabel(f"lr : {self.lr:.4f}")
-        self.lr_label.setMaximumHeight(20)
-
-        lr_layout = QHBoxLayout()
-        lr_slider.setMaximumHeight(20)
-        lr_layout.addWidget(lr_slider)
-        lr_layout.addWidget(self.lr_label)
 
         # Create the slider
         self.epoch = 30
@@ -78,39 +82,36 @@ class SettingWidget(QWidget):
         epoch_layout.addWidget(epoch_slider)
         epoch_layout.addWidget(self.epoch_label)
 
-        info_layout = QHBoxLayout()
-        self.info_label = QLabel("Status")
-        self.info_label.setAlignment(Qt.AlignCenter)
-        self.info_label.setMaximumHeight(20)
-        info_layout.addWidget(self.info_label)
+        # Create the slider
+        self.lr = 0.0006
+        lr_slider = QSlider(Qt.Horizontal)
+        lr_slider.setMaximumHeight(20)
+        lr_slider.setMinimum(0)
+        lr_slider.setMaximum(self.slider_steps)
+        lr_slider.setValue(int((self.lr-self.min_value) / self.precision)+1)
+        lr_slider.valueChanged.connect(self.update_lr)
 
-        # Create the progress bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)      # Set range from 0 to 100
-        self.progress_bar.setValue(0)                           # Initial value is 0
-        self.progress_bar.setTextVisible(True)                  # Show the percentage in the bar
+        # Create a label to display the current value
+        self.lr_label = QLabel(f"lr : {self.lr:.4f}")
+        self.lr_label.setMaximumHeight(20)
 
-        train_layout = QHBoxLayout()
-        train_layout.addWidget(self.progress_bar)
-        self.train_btn = QPushButton("Train")
-        self.train_btn.clicked.connect(self.start_task)
-        train_layout.addWidget(self.train_btn)
-        self.stop_btn = QPushButton("Stop")
-        self.stop_btn.setEnabled(False)
-        self.stop_btn.clicked.connect(self.stop_task)
-        train_layout.addWidget(self.stop_btn)
+        lr_layout = QHBoxLayout()
+        lr_slider.setMaximumHeight(20)
+        lr_layout.addWidget(lr_slider)
+        lr_layout.addWidget(self.lr_label)
 
-        self.reset_btn = QPushButton("Reset")
-        self.reset_btn.clicked.connect(lambda: self.on_model_change())
-        self.test_btn = QPushButton("Test")
-        self.test_btn.clicked.connect(self.test_model)
-        self.next_btn = QPushButton("Next")
-        self.next_btn.clicked.connect(self.next)
+        # Create a button to trigger the dropdown menu
+        model_dropdown = self.create_dropdown_menu(CONST.model, [self.on_model_change])
 
-        btn_layout = QHBoxLayout()
-        btn_layout.addWidget(self.reset_btn)
-        btn_layout.addWidget(self.test_btn)
-        btn_layout.addWidget(self.next_btn)
+        self.dataset_group = QButtonGroup(self)
+        dataset_selection = self.create_radio_group("Dataset", CONST.dataset, self.dataset_group)
+        self.dataset_name = CONST.dataset[0]
+        self.format_group = QButtonGroup(self)
+        input_format = self.create_radio_group("Format", CONST.format, self.format_group)
+        self.format = CONST.format[0]
+        self.scheduler_group = QButtonGroup(self)
+        scheduler_type = self.create_radio_group("Scheduler", CONST.scheduler_types, self.scheduler_group)
+        self.scheduler = CONST.scheduler_types[0]
 
         self.layout = QVBoxLayout(self)
         self.layout.addLayout(model_dropdown)
@@ -151,6 +152,7 @@ class SettingWidget(QWidget):
         self.next_btn.setEnabled(True)
 
     def next(self):
+        self.set_data(self.dataset_name, self.format)
         self.train_btn.setEnabled(False)
         self.test_btn.setEnabled(False)
         self.reset_btn.setEnabled(False)
@@ -252,6 +254,7 @@ class SettingWidget(QWidget):
         elif category.lower() == "format":
             selected_radio = self.format_group.checkedButton()
             self.format = selected_radio.text()
+            self.next_btn.setEnabled(self.format.lower() != "optical flow")
         elif category.lower() == "scheduler":
             selected_radio = self.scheduler_group.checkedButton()
             self.scheduler = selected_radio.text()
